@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en-us">
+
+<head>
+    <meta charset="utf-8">
+    <title>Hackathon</title>
+</head>
+
+<body>
+    <h1>Test to get API data from Binary Developers platform</h1>
+    <p> Choose a Symbol type and Watch as Ticks are being streamed to your tick box</p>
+    <style type="text/css">
+    body {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        background-color: #2E3436FF;
+        color: #fff;
+    }
+
+    .box {
+        display: flex;
+        justify-content: space-between;
+    }
+
+    .tick_display {
+        width: 500px;
+        margin-left: 60px;
+    }
+
+    .symbol_options {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+    }
+
+    #tick_box {
+        height: 300px;
+        max-height: 300px;
+        overflow-y: scroll;
+        border: 1px solid #000;
+        background-color: #002;
+        color: #fff;
+        padding: 10px;
+    }
+    </style>
+    <div class="box">
+        <div class='symbol_options'>
+            <p>Choose a Market Symbol..</p>
+            <select onchange="val()" id="symbols">
+                <option></option>
+            </select>
+        </div>
+        <div class="tick_display">
+            <h3>Showing list of ticks</h3>
+            <div id="tick_box"></div>
+        </div>
+    </div>
+    <script type="text/javascript">
+    var ws = new WebSocket('wss://ws.binaryws.com/websockets/v3?app_id=1089');
+
+    async function val() {
+        var d = document.getElementById("symbols").value;
+        await ws.send(JSON.stringify({ forget_all: "ticks" }))
+        await ws.send(JSON.stringify({ ticks: d, subscribe: 1 }))
+    }
+
+    ws.onopen = function(evt) {
+        ws.send(JSON.stringify({ authorize: 'lclcebgJRsH4cw2' }));
+    };
+
+    ws.onmessage = function(msg) {
+        var data = JSON.parse(msg.data);
+        if (data.msg_type == "authorize") {
+            ws.send(JSON.stringify({ active_symbols: "full", product_type: "basic" }))
+        }
+
+        if (data.msg_type == "active_symbols") {
+            var symbol_data = data.active_symbols.filter(
+                function(el) {
+                    return el.market == "synthetic_index"
+                }
+            )
+            console.log(symbol_data)
+
+            var select_tag = document.getElementById("symbols")
+
+            for (var i = 0; i < symbol_data.length; i++) {
+                var symbol = symbol_data[i].symbol
+
+                var node = document.createElement("option")
+                var introText = document.createTextNode(symbol);
+
+                node.appendChild(introText)
+                node.setAttribute("value", symbol)
+                node.setAttribute("id", symbol)
+                node.setAttribute("class", "option")
+
+                select_tag.appendChild(node)
+            }
+
+        }
+
+        var tick_box = document.getElementById("tick_box")
+
+        if (data.msg_type == "tick") {
+            var node = document.createElement("p")
+            var introText = document.createTextNode(`${data.tick.symbol} ${data.tick.quote}`);
+            node.appendChild(introText)
+
+            tick_box.insertBefore(node, tick_box.childNodes[0])
+        }
+    };
+    </script>
+</body>
+
+</html>
